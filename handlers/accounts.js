@@ -20,7 +20,9 @@ module.exports = function (config) {
   }
 
   function register (req, res, ctx) {
-    function createAccount () {
+    var email = ctx.body.email
+
+    if (publicRegistration || allowedEmails.indexOf(email) > -1) {
       ctx.body.scopes = [
         scopes.datasets.read,
         scopes.datasets.write,
@@ -30,24 +32,6 @@ module.exports = function (config) {
       township.register(req, res, ctx, function (err, code, data) {
         if (err) return error(400, err.message).pipe(res)
         send(data).pipe(res)
-      })
-    }
-
-    var email = ctx.body.email
-
-    /* if public registration is allowed or email matches allowed list, do it */
-    if (publicRegistration || allowedEmails.indexOf(email) > -1) {
-      return createAccount()
-    /* else if admin user, let them make an account for people */
-    } else if (scopes.admin && scopes.admin.length) {
-      township.verify(req, function (err, account, token) {
-        if (err) return error(403, 'Authorization failed').pipe(res)
-        if (!account) return error(403, 'Authorization failed').pipe(res)
-
-        township.accounts.authorize(account.auth.key, scopes.admin, function (err) {
-          if (err) return error(403, 'Server requires API access scope').pipe(res)
-          createAccount()
-        })
       })
     } else  {
       return error(403, 'Registration not available').pipe(res)
